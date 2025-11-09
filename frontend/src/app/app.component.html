@@ -1,0 +1,35 @@
+<div class="app-container">
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <h1>👤 Face Recognition System</h1>
+    </div>
+    <div class="navbar-menu">
+      <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">
+        📊 Dashboard
+      </a>
+      <a routerLink="/registration" routerLinkActive="active" class="nav-link">
+        ➕ Register Employee
+      </a>
+      <a routerLink="/recognition" routerLinkActive="active" class="nav-link">
+        🎥 Live Recognition
+      </a>
+      <a routerLink="/employees" routerLinkActive="active" class="nav-link">
+        👥 Employees
+      </a>
+      <a routerLink="/attendance" routerLinkActive="active" class="nav-link">
+        📝 Attendance Logs
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <router-outlet />
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>&copy; 2025 Face Recognition System | Powered by InsightFace & FastAPI</p>
+  </footer>
+</div>

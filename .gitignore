@@ -1,0 +1,92 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Storage
+app/storage/employee_images/*/
+app/storage/models/*.pkl
+app/storage/models/*.joblib
+!app/storage/.gitkeep
+
+# InsightFace models (large files)
+app/storage/insightface_models/
+insightface/models/
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Node (for frontend)
+node_modules/
+/dist
+/tmp
+/out-tsc
+.angular/
+*.ngfactory.ts
+*.ngsummary.json
+
+# Angular specific
+.angular/cache
+
+# Misc
+.sass-cache/
+connect.lock
+coverage/
+libpeerconnection.log
+testem.log
+/typings
+
+# System Files
+Thumbs.db
+*storage/

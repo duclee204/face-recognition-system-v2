@@ -1,0 +1,200 @@
+<div class="employee-list-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1>👥 Employee Management</h1>
+      <p class="subtitle">Manage registered employees</p>
+    </div>
+    <div class="header-right">
+      <button class="btn-primary" (click)="goToRegistration()">
+        ➕ Add New Employee
+      </button>
+    </div>
+  </div>
+
+  <!-- Error message -->
+  <div class="error-message" *ngIf="error">
+    ⚠️ {{ error }}
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-section">
+    <div class="search-box">
+      <input 
+        type="text" 
+        [(ngModel)]="searchText"
+        (ngModelChange)="onSearchChange()"
+        placeholder="🔍 Search by name, code, department..."
+        class="search-input"
+      />
+    </div>
+    
+    <div class="filter-group">
+      <label>Status:</label>
+      <select [(ngModel)]="filterActive" (change)="onFilterChange()" class="filter-select">
+        <option [ngValue]="undefined">All</option>
+        <option [ngValue]="true">Active</option>
+        <option [ngValue]="false">Inactive</option>
+      </select>
+    </div>
+
+    <div class="stats">
+      <span class="stat-item">
+        Total: <strong>{{ totalEmployees }}</strong>
+      </span>
+    </div>
+  </div>
+
+  <!-- Loading spinner -->
+  <div class="loading-spinner" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading employees...</p>
+  </div>
+
+  <!-- Employee table -->
+  <div class="table-container" *ngIf="!loading">
+    <table class="employee-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Employee Code</th>
+          <th>Full Name</th>
+          <th>Department</th>
+          <th>Position</th>
+          <th>Status</th>
+          <th>Registered Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let employee of filteredEmployees">
+          <td>{{ employee.id }}</td>
+          <td class="employee-code">{{ employee.employee_code }}</td>
+          <td class="employee-name">{{ employee.full_name }}</td>
+          <td>{{ employee.department || '-' }}</td>
+          <td>{{ employee.position || '-' }}</td>
+          <td>
+            <span class="status-badge" [ngClass]="getStatusClass(employee.is_active)">
+              {{ employee.is_active ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+          <td class="date-cell">{{ formatDate(employee.created_at) }}</td>
+          <td class="actions-cell">
+            <button class="btn-icon btn-edit" (click)="openEditModal(employee)" title="Edit">
+              ✏️
+            </button>
+            <button class="btn-icon btn-delete" (click)="openDeleteModal(employee)" title="Delete">
+              🗑️
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Empty state -->
+    <div class="empty-state" *ngIf="filteredEmployees.length === 0 && !loading">
+      <p>📭 No employees found</p>
+      <button class="btn-secondary" (click)="goToRegistration()">Register First Employee</button>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination" *ngIf="totalPages > 1 && !loading">
+    <button 
+      class="page-btn" 
+      (click)="goToPage(currentPage - 1)"
+      [disabled]="currentPage === 1">
+      ← Previous
+    </button>
+    
+    <button 
+      *ngFor="let page of getPageNumbers()"
+      class="page-btn"
+      [class.active]="page === currentPage"
+      (click)="goToPage(page)">
+      {{ page }}
+    </button>
+    
+    <button 
+      class="page-btn"
+      (click)="goToPage(currentPage + 1)"
+      [disabled]="currentPage === totalPages">
+      Next →
+    </button>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" *ngIf="showEditModal" (click)="closeEditModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>✏️ Edit Employee</h2>
+      <button class="close-btn" (click)="closeEditModal()">✕</button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input 
+          type="text" 
+          [(ngModel)]="editForm.full_name"
+          class="form-input"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label>Department</label>
+        <input 
+          type="text" 
+          [(ngModel)]="editForm.department"
+          class="form-input"
+        />
+      </div>
+
+      <div class="form-group">
+        <label>Position</label>
+        <input 
+          type="text" 
+          [(ngModel)]="editForm.position"
+          class="form-input"
+        />
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label>
+          <input 
+            type="checkbox" 
+            [(ngModel)]="editForm.is_active"
+          />
+          Active
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeEditModal()">Cancel</button>
+      <button class="btn-primary" (click)="saveEmployee()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" *ngIf="showDeleteModal" (click)="closeDeleteModal()">
+  <div class="modal-content modal-small" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>⚠️ Confirm Delete</h2>
+      <button class="close-btn" (click)="closeDeleteModal()">✕</button>
+    </div>
+    
+    <div class="modal-body">
+      <p>Are you sure you want to delete <strong>{{ deletingEmployee?.full_name }}</strong>?</p>
+      <p class="warning-text">This action cannot be undone.</p>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeDeleteModal()">Cancel</button>
+      <button class="btn-danger" (click)="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
