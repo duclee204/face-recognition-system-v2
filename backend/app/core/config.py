@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     STORAGE_PATH: str = "./app/storage"
     EMPLOYEE_IMAGES_PATH: str = "./app/storage/employee_images"
     MODELS_PATH: str = "./app/storage/models"
-    INSIGHTFACE_MODEL_PATH: str = "./app/storage/insightface_models"
+    INSIGHTFACE_MODEL_PATH: str = "./insightface"
     
     # Face Recognition Settings
     RECOGNITION_THRESHOLD: float = 0.5
