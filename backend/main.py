@@ -9,7 +9,7 @@ import sys
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.api import employees, recognition, attendance, system
+from app.api import recognition, auto_registration
 from app.services.face_recognition import face_service
 
 # Configure loguru
@@ -94,10 +94,8 @@ async def health_check():
 
 
 # Include routers
-app.include_router(employees.router, prefix=settings.API_V1_PREFIX)
+app.include_router(auto_registration.router, prefix=settings.API_V1_PREFIX)
 app.include_router(recognition.router, prefix=settings.API_V1_PREFIX)
-app.include_router(attendance.router, prefix=settings.API_V1_PREFIX)
-app.include_router(system.router, prefix=settings.API_V1_PREFIX)
 
 
 # Global exception handler

@@ -2,6 +2,23 @@
   <div class="header">
     <h2>🎥 Live Face Recognition</h2>
     <div class="controls">
+      <!-- Camera Selector -->
+      <div class="camera-selector" *ngIf="availableCameras.length > 0">
+        <label for="camera-select">📷 Camera:</label>
+        <select 
+          id="camera-select" 
+          [(ngModel)]="selectedCameraId" 
+          (change)="onCameraChange($event)"
+          [disabled]="isLoadingCameras">
+          <option *ngFor="let camera of availableCameras" [value]="camera.id">
+            {{ camera.name }} ({{ camera.id }})
+          </option>
+        </select>
+        <span class="current-camera" *ngIf="isStreaming">
+          📹 Current: Camera {{ currentCameraId }}
+        </span>
+      </div>
+      
       <button class="btn btn-primary" *ngIf="!isConnected" (click)="startRecognition()">
         ▶️ Start Recognition
       </button>

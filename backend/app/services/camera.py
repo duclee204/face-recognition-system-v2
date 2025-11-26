@@ -30,6 +30,82 @@ class CameraService:
         self.stop_event: Optional[Event] = None
         self.ai_process: Optional[Process] = None
     
+    @staticmethod
+    def list_available_cameras(max_cameras: int = 10) -> List[Dict]:
+        """
+        List all available cameras on the system
+        
+        Args:
+            max_cameras: Maximum number of cameras to check
+            
+        Returns:
+            List of camera information dictionaries
+        """
+        available_cameras = []
+        
+        for camera_id in range(max_cameras):
+            try:
+                cap = cv2.VideoCapture(camera_id, cv2.CAP_DSHOW)
+                if not cap.isOpened():
+                    cap = cv2.VideoCapture(camera_id)
+                
+                if cap.isOpened():
+                    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    fps = int(cap.get(cv2.CAP_PROP_FPS))
+                    backend = cap.getBackendName()
+                    
+                    available_cameras.append({
+                        "id": camera_id,
+                        "name": f"Camera {camera_id}",
+                        "width": width,
+                        "height": height,
+                        "fps": fps if fps > 0 else 30,
+                        "backend": backend
+                    })
+                    
+                    cap.release()
+                    logger.info(f"Found camera {camera_id}: {width}x{height}")
+                    
+            except Exception as e:
+                logger.debug(f"Camera {camera_id} not available: {e}")
+                continue
+        
+        return available_cameras
+    
+    def switch_camera(self, new_camera_id: int) -> bool:
+        """
+        Switch to a different camera
+        
+        Args:
+            new_camera_id: ID of the new camera
+            
+        Returns:
+            Success status
+        """
+        try:
+            # Close current camera
+            if self.cap is not None:
+                self.cap.release()
+                self.cap = None
+            
+            # Update camera ID
+            self.camera_id = new_camera_id
+            
+            # Open new camera
+            success = self.open_camera()
+            
+            if success:
+                logger.info(f"✅ Switched to camera {new_camera_id}")
+            else:
+                logger.error(f"❌ Failed to switch to camera {new_camera_id}")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error switching camera: {e}")
+            return False
+    
     def open_camera(self) -> bool:
         """Open camera device"""
         try:

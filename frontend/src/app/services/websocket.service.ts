@@ -87,4 +87,25 @@ export class WebsocketService {
   getState(): number | null {
     return this.ws?.readyState ?? null;
   }
+
+  /**
+   * Send message to WebSocket
+   */
+  sendMessage(message: any): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(message));
+    } else {
+      console.error('WebSocket is not connected');
+    }
+  }
+
+  /**
+   * Switch camera
+   */
+  switchCamera(cameraId: number): void {
+    this.sendMessage({
+      type: 'switch_camera',
+      camera_id: cameraId
+    });
+  }
 }

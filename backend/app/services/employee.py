@@ -48,14 +48,13 @@ class EmployeeService:
             employee_code=employee_data.employee_code,
             full_name=employee_data.full_name,
             email=employee_data.email,
-            phone=employee_data.phone,
-            department=employee_data.department,
+            phone_number=employee_data.phone,
             position=employee_data.position,
             embeddings=embeddings_json,
             mean_embedding=mean_embedding_json,
             image_paths=image_paths_json,
             total_embeddings=len(embeddings),
-            is_active=True
+            status="active"
         )
         
         db.add(db_employee)
@@ -84,23 +83,23 @@ class EmployeeService:
         db: Session,
         skip: int = 0,
         limit: int = 100,
-        is_active: Optional[bool] = None
+        status: Optional[str] = None
     ) -> List[Employee]:
         """Get list of employees"""
         query = db.query(Employee)
         
-        if is_active is not None:
-            query = query.filter(Employee.is_active == is_active)
+        if status is not None:
+            query = query.filter(Employee.status == status)
         
         return query.offset(skip).limit(limit).all()
     
     @staticmethod
-    def count_employees(db: Session, is_active: Optional[bool] = None) -> int:
+    def count_employees(db: Session, status: Optional[str] = None) -> int:
         """Count total employees"""
         query = db.query(Employee)
         
-        if is_active is not None:
-            query = query.filter(Employee.is_active == is_active)
+        if status is not None:
+            query = query.filter(Employee.status == status)
         
         return query.count()
     
@@ -131,13 +130,13 @@ class EmployeeService:
     
     @staticmethod
     def delete_employee(db: Session, employee_id: int) -> bool:
-        """Delete employee (soft delete - set is_active to False)"""
+        """Delete employee (soft delete - set status to inactive)"""
         db_employee = db.query(Employee).filter(Employee.id == employee_id).first()
         
         if not db_employee:
             return False
         
-        db_employee.is_active = False
+        db_employee.status = "inactive"
         db_employee.updated_at = datetime.utcnow()
         db.commit()
         
@@ -153,7 +152,7 @@ class EmployeeService:
         """
         Rebuild face recognition database from MySQL database
         """
-        employees = db.query(Employee).filter(Employee.is_active == True).all()
+        employees = db.query(Employee).filter(Employee.status == "active").all()
         
         face_service.employee_db = {}
         

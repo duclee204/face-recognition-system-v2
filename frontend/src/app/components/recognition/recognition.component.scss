@@ -18,6 +18,61 @@
     .controls {
       display: flex;
       gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      
+      .camera-selector {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        
+        label {
+          margin: 0;
+          font-weight: 600;
+          color: #4a5568;
+          white-space: nowrap;
+        }
+        
+        select {
+          padding: 0.5rem;
+          border: 2px solid #cbd5e0;
+          border-radius: 6px;
+          background: white;
+          color: #2d3748;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          
+          &:hover:not(:disabled) {
+            border-color: #667eea;
+          }
+          
+          &:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+          }
+          
+          &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+        }
+        
+        .current-camera {
+          padding: 0.25rem 0.75rem;
+          background: #c6f6d5;
+          color: #22543d;
+          border-radius: 4px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          white-space: nowrap;
+        }
+      }
     }
   }
 }

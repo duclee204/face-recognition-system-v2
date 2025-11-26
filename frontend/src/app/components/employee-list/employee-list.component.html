@@ -31,10 +31,10 @@
     
     <div class="filter-group">
       <label>Status:</label>
-      <select [(ngModel)]="filterActive" (change)="onFilterChange()" class="filter-select">
+      <select [(ngModel)]="filterActive" (change)="onFilterChange()" class="filter-select" title="Filter by status">
         <option [ngValue]="undefined">All</option>
-        <option [ngValue]="true">Active</option>
-        <option [ngValue]="false">Inactive</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
       </select>
     </div>
 
@@ -71,11 +71,11 @@
           <td>{{ employee.id }}</td>
           <td class="employee-code">{{ employee.employee_code }}</td>
           <td class="employee-name">{{ employee.full_name }}</td>
-          <td>{{ employee.department || '-' }}</td>
+          <td>{{ employee.department_id || '-' }}</td>
           <td>{{ employee.position || '-' }}</td>
           <td>
-            <span class="status-badge" [ngClass]="getStatusClass(employee.is_active)">
-              {{ employee.is_active ? 'Active' : 'Inactive' }}
+            <span class="status-badge" [ngClass]="getStatusClass(employee.status || 'active')">
+              {{ employee.status === 'active' ? 'Active' : 'Inactive' }}
             </span>
           </td>
           <td class="date-cell">{{ formatDate(employee.created_at) }}</td>
@@ -140,15 +140,19 @@
           [(ngModel)]="editForm.full_name"
           class="form-input"
           required
+          placeholder="Enter full name"
+          title="Full Name"
         />
       </div>
 
       <div class="form-group">
-        <label>Department</label>
+        <label>Department ID</label>
         <input 
-          type="text" 
-          [(ngModel)]="editForm.department"
+          type="number" 
+          [(ngModel)]="editForm.department_id"
           class="form-input"
+          placeholder="Enter department ID"
+          title="Department ID"
         />
       </div>
 
@@ -158,17 +162,21 @@
           type="text" 
           [(ngModel)]="editForm.position"
           class="form-input"
+          placeholder="Enter position"
+          title="Position"
         />
       </div>
 
-      <div class="form-group checkbox-group">
-        <label>
-          <input 
-            type="checkbox" 
-            [(ngModel)]="editForm.is_active"
-          />
-          Active
-        </label>
+      <div class="form-group">
+        <label>Status</label>
+        <select 
+          [(ngModel)]="editForm.status"
+          class="form-input"
+          title="Employee Status"
+        >
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
       </div>
     </div>
 

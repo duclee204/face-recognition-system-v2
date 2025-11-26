@@ -1,0 +1,183 @@
+<div class="auto-registration-container">
+  <div class="header">
+    <h1>🤖 Auto Face Registration</h1>
+    <p>Automatic multi-angle face capture with real-time guidance</p>
+  </div>
+
+  <!-- Registration Form -->
+  <div class="registration-form" *ngIf="!sessionStarted">
+    <h2>Employee Information</h2>
+    
+    <div class="form-group">
+      <label for="employeeCode">Employee Code *</label>
+      <input 
+        type="text" 
+        id="employeeCode"
+        [(ngModel)]="employeeData.employee_code"
+        placeholder="e.g., EMP001"
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="fullName">Full Name *</label>
+      <input 
+        type="text" 
+        id="fullName"
+        [(ngModel)]="employeeData.full_name"
+        placeholder="e.g., Nguyen Van A"
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input 
+        type="email" 
+        id="email"
+        [(ngModel)]="employeeData.email"
+        placeholder="e.g., email@company.com"
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="phone">Phone Number</label>
+      <input 
+        type="tel" 
+        id="phone"
+        [(ngModel)]="employeeData.phone_number"
+        placeholder="e.g., 0123456789"
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="position">Position</label>
+      <input 
+        type="text" 
+        id="position"
+        [(ngModel)]="employeeData.position"
+        placeholder="e.g., Developer"
+      />
+    </div>
+
+    <button class="btn btn-primary" (click)="startSession()">
+      Start Registration
+    </button>
+  </div>
+
+  <!-- Capture Interface -->
+  <div class="capture-interface" *ngIf="sessionStarted">
+    
+    <!-- Progress Bar -->
+    <div class="progress-section" *ngIf="progress">
+      <h3>Progress: {{ progress.progress_percentage }}%</h3>
+      <div class="progress-bar">
+        <div 
+          class="progress-fill" 
+          [style.width.%]="progress.progress_percentage"
+        ></div>
+      </div>
+      
+      <div class="poses-status">
+        <div 
+          *ngFor="let pose of REQUIRED_POSES" 
+          class="pose-badge"
+          [class.captured]="progress.captured_poses.includes(pose)"
+          [class.current]="progress.current_target_pose === pose"
+        >
+          {{ pose.toUpperCase() }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Camera Preview -->
+    <div class="camera-section">
+      <div 
+        class="camera-preview"
+        [style.border-color]="getBorderColor()"
+      >
+        <img 
+          *ngIf="framePreview" 
+          [src]="framePreview" 
+          alt="Camera Feed"
+        />
+        <div *ngIf="!framePreview" class="camera-placeholder">
+          <div class="loading-spinner"></div>
+          <p>Initializing camera...</p>
+        </div>
+
+        <!-- Pose Indicator Overlay -->
+        <div class="pose-indicator" *ngIf="currentGuidance">
+          <div class="angles">
+            <span>Yaw: {{ currentGuidance.yaw?.toFixed(1) }}°</span>
+            <span>Pitch: {{ currentGuidance.pitch?.toFixed(1) }}°</span>
+            <span>Roll: {{ currentGuidance.roll?.toFixed(1) }}°</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Guidance Display -->
+      <div class="guidance-section">
+        <div class="current-instruction">
+          <h3>{{ getCurrentPoseInstruction() }}</h3>
+        </div>
+
+        <div 
+          class="guidance-message"
+          [class.success]="poseOk"
+          [class.warning]="!poseOk"
+        >
+          <div class="icon">
+            <span *ngIf="poseOk">✅</span>
+            <span *ngIf="!poseOk">❌</span>
+          </div>
+          <div class="message">
+            {{ currentGuidance?.message || 'Waiting for guidance...' }}
+          </div>
+        </div>
+
+        <div class="detailed-guidance" *ngIf="currentGuidance?.guidance">
+          <p>{{ currentGuidance?.guidance }}</p>
+        </div>
+
+        <!-- Hold Progress -->
+        <div class="hold-progress" *ngIf="stableFramesProgress > 0">
+          <div class="hold-bar">
+            <div 
+              class="hold-fill" 
+              [style.width.%]="stableFramesProgress"
+            ></div>
+          </div>
+          <p class="hold-text">Hold steady... {{ stableFramesProgress.toFixed(0) }}%</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="actions">
+      <button 
+        class="btn btn-danger" 
+        (click)="cancelRegistration()"
+        [disabled]="isCompleting"
+      >
+        Cancel
+      </button>
+
+      <button 
+        class="btn btn-success" 
+        (click)="completeRegistration()"
+        [disabled]="!progress?.is_complete || isCompleting"
+      >
+        {{ isCompleting ? 'Processing...' : 'Complete Registration' }}
+      </button>
+    </div>
+
+    <!-- Debug Info (Optional) -->
+    <div class="debug-info" *ngIf="currentGuidance">
+      <details>
+        <summary>Debug Info</summary>
+        <pre>{{ currentGuidance | json }}</pre>
+      </details>
+    </div>
+  </div>
+</div>

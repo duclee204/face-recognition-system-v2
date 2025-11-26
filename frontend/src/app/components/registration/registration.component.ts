@@ -22,8 +22,8 @@ export class RegistrationComponent implements OnInit, OnDestroy {
     employee_code: '',
     full_name: '',
     email: '',
-    phone: '',
-    department: '',
+    phone_number: '',
+    department_id: undefined,
     position: ''
   };
 
@@ -152,8 +152,8 @@ export class RegistrationComponent implements OnInit, OnDestroy {
     formData.append('name', this.employee.full_name);
     
     if (this.employee.email) formData.append('email', this.employee.email);
-    if (this.employee.phone) formData.append('phone', this.employee.phone);
-    if (this.employee.department) formData.append('department', this.employee.department);
+    if (this.employee.phone_number) formData.append('phone_number', this.employee.phone_number);
+    if (this.employee.department_id) formData.append('department_id', this.employee.department_id.toString());
     if (this.employee.position) formData.append('position', this.employee.position);
     
     // Append all images
@@ -361,8 +361,8 @@ export class RegistrationComponent implements OnInit, OnDestroy {
       employee_code: '',
       full_name: '',
       email: '',
-      phone: '',
-      department: '',
+      phone_number: '',
+      department_id: undefined,
       position: ''
     };
   }

@@ -2,8 +2,16 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Employee, EmployeeCreate, EmployeeUpdate } from '../models/employee.model';
-import { AttendanceLog, AttendanceStats } from '../models/attendance.model';
-import { RegistrationSession, RegistrationFrame, RegistrationComplete } from '../models/recognition.model';
+import { AttendanceLog, AttendanceStats, CheckInStatus } from '../models/attendance.model';
+import { 
+  RegistrationSession, 
+  RegistrationFrame, 
+  RegistrationComplete,
+  AutoRegistrationStart,
+  AutoRegistrationProgress,
+  AutoRegistrationComplete,
+  AutoRegistrationCompleteResponse
+} from '../models/recognition.model';
 
 @Injectable({
   providedIn: 'root'
@@ -48,13 +56,13 @@ export class ApiService {
   /**
    * Get all employees
    */
-  getEmployees(skip = 0, limit = 100, isActive?: boolean): Observable<{ total: number; employees: Employee[] }> {
+  getEmployees(skip = 0, limit = 100, status?: string): Observable<{ total: number; employees: Employee[] }> {
     let params = new HttpParams()
       .set('skip', skip.toString())
       .set('limit', limit.toString());
     
-    if (isActive !== undefined) {
-      params = params.set('is_active', isActive.toString());
+    if (status !== undefined) {
+      params = params.set('status', status);
     }
 
     return this.http.get<{ total: number; employees: Employee[] }>(
@@ -91,6 +99,24 @@ export class ApiService {
    */
   getCameraInfo(): Observable<any> {
     return this.http.get(`${this.baseUrl}/recognition/camera/info`);
+  }
+
+  /**
+   * Get list of available cameras
+   */
+  listCameras(): Observable<{ success: boolean; cameras: any[]; count: number }> {
+    return this.http.get<{ success: boolean; cameras: any[]; count: number }>(
+      `${this.baseUrl}/recognition/camera/list`
+    );
+  }
+
+  /**
+   * Get recognized employees
+   */
+  getRecognizedEmployees(): Observable<{ success: boolean; recognized: any[]; count: number }> {
+    return this.http.get<{ success: boolean; recognized: any[]; count: number }>(
+      `${this.baseUrl}/recognition/recognized`
+    );
   }
 
   // ==================== ATTENDANCE APIs ====================
@@ -142,8 +168,50 @@ export class ApiService {
   /**
    * Check employee check-in status
    */
-  getCheckInStatus(employeeId: number): Observable<any> {
-    return this.http.get(`${this.baseUrl}/attendance/check-in-status/${employeeId}`);
+  getCheckInStatus(employeeId: number): Observable<CheckInStatus> {
+    return this.http.get<CheckInStatus>(`${this.baseUrl}/attendance/check-in-status/${employeeId}`);
+  }
+
+  // ==================== AUTO REGISTRATION APIs ====================
+
+  /**
+   * Start auto registration session
+   */
+  startAutoRegistration(data: AutoRegistrationStart): Observable<any> {
+    return this.http.post(`${this.baseUrl}/auto-registration/start`, data);
+  }
+
+  /**
+   * Get auto registration progress
+   */
+  getAutoRegistrationProgress(employeeCode: string): Observable<AutoRegistrationProgress> {
+    return this.http.get<AutoRegistrationProgress>(
+      `${this.baseUrl}/auto-registration/progress/${employeeCode}`
+    );
+  }
+
+  /**
+   * Complete auto registration
+   */
+  completeAutoRegistration(data: AutoRegistrationComplete): Observable<AutoRegistrationCompleteResponse> {
+    return this.http.post<AutoRegistrationCompleteResponse>(
+      `${this.baseUrl}/auto-registration/complete`,
+      data
+    );
+  }
+
+  /**
+   * Cancel auto registration session
+   */
+  cancelAutoRegistration(employeeCode: string): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/auto-registration/cancel/${employeeCode}`);
+  }
+
+  /**
+   * Get active registration sessions
+   */
+  getActiveRegistrationSessions(): Observable<{ success: boolean; active_sessions: string[]; count: number }> {
+    return this.http.get<any>(`${this.baseUrl}/auto-registration/active-sessions`);
   }
 
   // ==================== SYSTEM APIs ====================

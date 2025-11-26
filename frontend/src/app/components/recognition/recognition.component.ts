@@ -1,12 +1,14 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { WebsocketService } from '../../services/websocket.service';
+import { ApiService } from '../../services/api.service';
 import { RecognitionFrame, RecognizedFace } from '../../models/recognition.model';
 import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-recognition',
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './recognition.component.html',
   styleUrl: './recognition.component.scss'
 })
@@ -21,6 +23,12 @@ export class RecognitionComponent implements OnInit, OnDestroy, AfterViewInit {
   lastFrameTime = 0;
   message = '';
   errorMessage = '';
+  
+  // Camera management
+  availableCameras: any[] = [];
+  selectedCameraId: number = 0;
+  currentCameraId: number = 0;
+  isLoadingCameras = false;
 
   private wsSubscription?: Subscription;
   private fpsInterval: any;
@@ -28,13 +36,19 @@ export class RecognitionComponent implements OnInit, OnDestroy, AfterViewInit {
   
   private readonly FACE_TIMEOUT = 10000; // Keep faces for 10 seconds
 
-  constructor(private wsService: WebsocketService) {}
+  constructor(
+    private wsService: WebsocketService,
+    private apiService: ApiService
+  ) {}
 
   ngOnInit() {
     // Cleanup old faces periodically
     this.cleanupInterval = setInterval(() => {
       this.cleanupOldFaces();
     }, 1000);
+    
+    // Load available cameras
+    this.loadCameras();
   }
 
   ngAfterViewInit() {
@@ -151,11 +165,22 @@ export class RecognitionComponent implements OnInit, OnDestroy, AfterViewInit {
       this.errorMessage = frame.message || 'Unknown error';
       return;
     }
+    
+    if (frame.type === 'camera_switched') {
+      this.message = frame.message || 'Camera switched';
+      this.currentCameraId = frame.camera_id || this.selectedCameraId;
+      return;
+    }
 
     if (frame.type === 'frame' && frame.frame) {
       this.isStreaming = true;
       this.message = '';
       this.lastFrameTime = Date.now();
+      
+      // Update current camera ID from frame
+      if (frame.camera_id !== undefined) {
+        this.currentCameraId = frame.camera_id;
+      }
 
       // Display frame
       this.displayFrame(frame.frame);
@@ -308,5 +333,49 @@ export class RecognitionComponent implements OnInit, OnDestroy, AfterViewInit {
   restart() {
     this.stopRecognition();
     setTimeout(() => this.startRecognition(), 500);
+  }
+  
+  /**
+   * Load available cameras
+   */
+  loadCameras() {
+    this.isLoadingCameras = true;
+    this.apiService.listCameras().subscribe({
+      next: (response) => {
+        this.availableCameras = response.cameras;
+        console.log(`📷 Found ${response.count} cameras:`, this.availableCameras);
+        this.isLoadingCameras = false;
+      },
+      error: (error) => {
+        console.error('Error loading cameras:', error);
+        this.isLoadingCameras = false;
+        // Set default camera if failed
+        this.availableCameras = [{ id: 0, name: 'Default Camera', available: true }];
+      }
+    });
+  }
+  
+  /**
+   * Switch to selected camera
+   */
+  switchCamera() {
+    if (!this.wsService.isConnected()) {
+      this.errorMessage = 'Not connected to WebSocket';
+      return;
+    }
+    
+    console.log(`Switching to camera ${this.selectedCameraId}`);
+    this.wsService.switchCamera(this.selectedCameraId);
+    this.message = `Switching to camera ${this.selectedCameraId}...`;
+  }
+  
+  /**
+   * Handle camera selection change
+   */
+  onCameraChange(event: any) {
+    this.selectedCameraId = parseInt(event.target.value, 10);
+    if (this.isConnected) {
+      this.switchCamera();
+    }
   }
 }

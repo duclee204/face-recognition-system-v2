@@ -52,6 +52,8 @@
           type="date" 
           [(ngModel)]="filterStartDate"
           class="date-input"
+          title="Start Date"
+          placeholder="From date"
         />
       </div>
 
@@ -61,6 +63,8 @@
           type="date" 
           [(ngModel)]="filterEndDate"
           class="date-input"
+          title="End Date"
+          placeholder="To date"
         />
       </div>
 
@@ -99,10 +103,10 @@
       <thead>
         <tr>
           <th>ID</th>
-          <th>Employee Code</th>
-          <th>Employee Name</th>
+          <th>Employee ID</th>
           <th>Date</th>
           <th>Check-in Time</th>
+          <th>Check-out Time</th>
           <th>Confidence</th>
           <th>Method</th>
         </tr>
@@ -110,18 +114,18 @@
       <tbody>
         <tr *ngFor="let log of filteredLogs">
           <td>{{ log.id }}</td>
-          <td class="employee-code">{{ log.employee_code }}</td>
-          <td class="employee-name">{{ log.employee_name }}</td>
-          <td class="date-cell">{{ formatDate(log.check_in_time) }}</td>
-          <td class="time-cell">{{ formatTime(log.check_in_time) }}</td>
+          <td class="employee-code">{{ log.employee_id }}</td>
+          <td class="date-cell">{{ formatDate(log.work_date || '') }}</td>
+          <td class="time-cell">{{ formatTime(log.check_in || '') }}</td>
+          <td class="time-cell">{{ formatTime(log.check_out || '') }}</td>
           <td>
-            <span class="confidence-badge" [ngClass]="getConfidenceClass(log.confidence_score)">
-              {{ (log.confidence_score * 100).toFixed(1) }}%
+            <span class="confidence-badge" [ngClass]="getConfidenceClass(log.confidence_score || 0)">
+              {{ ((log.confidence_score || 0) * 100).toFixed(1) }}%
             </span>
           </td>
           <td>
-            <span class="method-badge" [ngClass]="getMethodClass(log.recognition_method)">
-              {{ log.recognition_method.toUpperCase() }}
+            <span class="method-badge" [ngClass]="getMethodClass(log.recognition_method || 'unknown')">
+              {{ (log.recognition_method || 'unknown').toUpperCase() }}
             </span>
           </td>
         </tr>

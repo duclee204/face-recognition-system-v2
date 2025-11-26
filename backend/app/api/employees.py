@@ -460,7 +460,7 @@ async def delete_employee(
         )
     
     # Auto-retrain SVM model after deletion
-    total_employees = employee_service.count_employees(db, is_active=True)
+    total_employees = employee_service.count_employees(db, status='active')
     if total_employees >= 2:
         logger.info(f"🔄 Retraining SVM model with {total_employees} active employees...")
         try:

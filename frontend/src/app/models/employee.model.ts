@@ -3,11 +3,13 @@ export interface Employee {
   employee_code: string;
   full_name: string;
   email?: string;
-  phone?: string;
-  department?: string;
+  phone_number?: string;
   position?: string;
+  base_salary?: number;
+  standard_work_days?: number;
+  department_id?: number;
   total_embeddings: number;
-  is_active: boolean;
+  status?: string;  // 'active' | 'inactive'
   created_at: string;
   updated_at?: string;
 }
@@ -16,16 +18,20 @@ export interface EmployeeCreate {
   employee_code: string;
   full_name: string;
   email?: string;
-  phone?: string;
-  department?: string;
+  phone_number?: string;
   position?: string;
+  base_salary?: number;
+  standard_work_days?: number;
+  department_id?: number;
 }
 
 export interface EmployeeUpdate {
   full_name?: string;
   email?: string;
-  phone?: string;
-  department?: string;
+  phone_number?: string;
   position?: string;
-  is_active?: boolean;
+  base_salary?: number;
+  standard_work_days?: number;
+  department_id?: number;
+  status?: string;
 }

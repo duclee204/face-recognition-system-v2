@@ -11,31 +11,35 @@ from datetime import datetime
 # ============================================
 
 class EmployeeBase(BaseModel):
-    full_name: str = Field(..., min_length=1, max_length=255)
+    full_name: str = Field(..., min_length=1, max_length=100)
     email: Optional[EmailStr] = None
-    phone: Optional[str] = Field(None, max_length=20)
-    department: Optional[str] = Field(None, max_length=100)
+    phone_number: Optional[str] = Field(None, max_length=20)
     position: Optional[str] = Field(None, max_length=100)
+    base_salary: Optional[float] = None
+    standard_work_days: Optional[int] = None
+    department_id: Optional[int] = None
 
 
 class EmployeeCreate(EmployeeBase):
-    employee_code: str = Field(..., min_length=1, max_length=50)
+    employee_code: str = Field(..., min_length=1, max_length=20)
 
 
 class EmployeeUpdate(BaseModel):
-    full_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    full_name: Optional[str] = Field(None, min_length=1, max_length=100)
     email: Optional[EmailStr] = None
-    phone: Optional[str] = Field(None, max_length=20)
-    department: Optional[str] = Field(None, max_length=100)
+    phone_number: Optional[str] = Field(None, max_length=20)
     position: Optional[str] = Field(None, max_length=100)
-    is_active: Optional[bool] = None
+    base_salary: Optional[float] = None
+    standard_work_days: Optional[int] = None
+    department_id: Optional[int] = None
+    status: Optional[str] = None
 
 
 class EmployeeResponse(EmployeeBase):
     id: int
     employee_code: str
     total_embeddings: int
-    is_active: bool
+    status: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     
@@ -112,11 +116,15 @@ class RecognitionResponse(BaseModel):
 class AttendanceLogResponse(BaseModel):
     id: int
     employee_id: int
-    employee_code: str
-    employee_name: str
-    confidence_score: float
-    recognition_method: str
-    check_in_time: datetime
+    work_date: Optional[datetime] = None
+    check_in: Optional[datetime] = None
+    check_out: Optional[datetime] = None
+    total_hours: Optional[float] = None
+    status: Optional[str] = None
+    confidence_score: Optional[float] = None
+    recognition_method: Optional[str] = None
+    camera_id: Optional[int] = None
+    notes: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -139,6 +147,8 @@ class AttendanceStatsResponse(BaseModel):
 # ============================================
 
 class SystemStatusResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}
+    
     status: str
     total_employees: int
     model_loaded: bool
@@ -152,6 +162,8 @@ class TrainModelRequest(BaseModel):
 
 
 class TrainModelResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}
+    
     success: bool
     message: str
     training_time: Optional[float] = None
@@ -166,6 +178,58 @@ class TrainModelResponse(BaseModel):
 class WebSocketMessage(BaseModel):
     type: str  # 'frame', 'recognition', 'error', 'info'
     data: dict
+
+
+# ============================================
+# Auto Registration Schemas
+# ============================================
+
+class AutoRegistrationStartRequest(BaseModel):
+    employee_code: str = Field(..., min_length=1, max_length=20)
+    full_name: str = Field(..., min_length=1, max_length=100)
+    email: Optional[EmailStr] = None
+    phone_number: Optional[str] = None
+    position: Optional[str] = None
+
+
+class AutoRegistrationProgressResponse(BaseModel):
+    session_id: str
+    employee_code: str
+    current_target_pose: str
+    captured_poses: List[str]
+    remaining_poses: List[str]
+    progress_percentage: int
+    is_complete: bool
+
+
+class AutoRegistrationFrameResponse(BaseModel):
+    status: str  # 'adjusting', 'holding', 'captured', 'completed', 'no_pose'
+    message: str
+    guidance: str
+    pose_ok: bool
+    should_capture: bool
+    target_pose: Optional[str] = None
+    captured_pose: Optional[str] = None
+    yaw: Optional[float] = None
+    pitch: Optional[float] = None
+    roll: Optional[float] = None
+    stable_frames: Optional[int] = None
+    hold_frames_required: Optional[int] = None
+    progress: Optional[AutoRegistrationProgressResponse] = None
+
+
+class AutoRegistrationCompleteRequest(BaseModel):
+    employee_code: str
+    session_id: str
+
+
+class AutoRegistrationCompleteResponse(BaseModel):
+    success: bool
+    message: str
+    employee_id: Optional[int] = None
+    total_images: int
+    embeddings_count: int
+
     timestamp: Optional[float] = None
 
 

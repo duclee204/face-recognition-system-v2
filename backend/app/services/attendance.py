@@ -20,46 +20,64 @@ class AttendanceService:
     def log_attendance(
         db: Session,
         employee_id: int,
-        employee_code: str,
-        employee_name: str,
-        confidence_score: float,
-        recognition_method: str,
-        snapshot_path: Optional[str] = None,
-        location: Optional[str] = None
-    ) -> AttendanceLog:
+        camera_id: Optional[int] = None
+    ) -> tuple[AttendanceLog, str]:
         """
-        Log attendance record
+        Log attendance record - automatically handles check-in or check-out
+        Logic: 
+        - First recognition of the day = check-in
+        - All subsequent recognitions = update check-out (continuously updated)
         
         Args:
             db: Database session
             employee_id: Employee ID
-            employee_code: Employee code
-            employee_name: Employee name
-            confidence_score: Recognition confidence
-            recognition_method: Recognition method used
-            snapshot_path: Path to snapshot image
-            location: Check-in location
+            camera_id: Camera ID used for recognition
             
         Returns:
-            Created AttendanceLog object
+            Tuple of (AttendanceLog object, action: 'check-in' or 'check-out')
         """
-        attendance = AttendanceLog(
-            employee_id=employee_id,
-            employee_code=employee_code,
-            employee_name=employee_name,
-            confidence_score=confidence_score,
-            recognition_method=recognition_method,
-            snapshot_path=snapshot_path,
-            location=location
-        )
+        today = datetime.now().date()
+        now = datetime.now()
         
-        db.add(attendance)
-        db.commit()
-        db.refresh(attendance)
+        # Check if already has attendance record for today
+        existing = db.query(AttendanceLog).filter(
+            and_(
+                AttendanceLog.employee_id == employee_id,
+                AttendanceLog.work_date == today
+            )
+        ).first()
         
-        logger.info(f"✅ Attendance logged: {employee_name} ({confidence_score:.3f})")
-        
-        return attendance
+        if not existing:
+            # First time today - CREATE new record with check-in
+            attendance = AttendanceLog(
+                employee_id=employee_id,
+                camera_id=camera_id,
+                work_date=today,
+                check_in=now,
+                status="checked-in"
+            )
+            
+            db.add(attendance)
+            db.commit()
+            db.refresh(attendance)
+            
+            logger.info(f"✅ CHECK-IN: employee_id {employee_id} at {now.strftime('%H:%M:%S')}")
+            return attendance, "check-in"
+            
+        else:
+            # Has check-in - ALWAYS UPDATE check-out (continuous update)
+            existing.check_out = now
+            
+            # Calculate total hours
+            time_diff = existing.check_out - existing.check_in
+            existing.total_hours = round(time_diff.total_seconds() / 3600, 2)
+            existing.status = "completed"
+            
+            db.commit()
+            db.refresh(existing)
+            
+            logger.info(f"🔄 CHECK-OUT UPDATED: employee_id {employee_id} at {now.strftime('%H:%M:%S')} (Total: {existing.total_hours}h)")
+            return existing, "check-out"
     
     @staticmethod
     def get_attendance_logs(
@@ -90,12 +108,12 @@ class AttendanceService:
             query = query.filter(AttendanceLog.employee_id == employee_id)
         
         if start_date:
-            query = query.filter(AttendanceLog.check_in_time >= start_date)
+            query = query.filter(AttendanceLog.check_in >= start_date)
         
         if end_date:
-            query = query.filter(AttendanceLog.check_in_time <= end_date)
+            query = query.filter(AttendanceLog.check_in <= end_date)
         
-        return query.order_by(AttendanceLog.check_in_time.desc()).offset(skip).limit(limit).all()
+        return query.order_by(AttendanceLog.check_in.desc()).offset(skip).limit(limit).all()
     
     @staticmethod
     def count_attendance_logs(
@@ -111,25 +129,21 @@ class AttendanceService:
             query = query.filter(AttendanceLog.employee_id == employee_id)
         
         if start_date:
-            query = query.filter(AttendanceLog.check_in_time >= start_date)
+            query = query.filter(AttendanceLog.check_in >= start_date)
         
         if end_date:
-            query = query.filter(AttendanceLog.check_in_time <= end_date)
+            query = query.filter(AttendanceLog.check_in <= end_date)
         
         return query.count()
     
     @staticmethod
     def get_today_attendance(db: Session) -> List[AttendanceLog]:
         """Get today's attendance logs"""
-        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        tomorrow = today + timedelta(days=1)
+        today = datetime.now().date()
         
         return db.query(AttendanceLog).filter(
-            and_(
-                AttendanceLog.check_in_time >= today,
-                AttendanceLog.check_in_time < tomorrow
-            )
-        ).order_by(AttendanceLog.check_in_time.desc()).all()
+            AttendanceLog.work_date == today
+        ).order_by(AttendanceLog.check_in.desc()).all()
     
     @staticmethod
     def get_attendance_stats(db: Session) -> dict:
@@ -140,27 +154,27 @@ class AttendanceService:
             Dictionary with statistics
         """
         now = datetime.now()
-        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today = now.date()
         week_start = today - timedelta(days=today.weekday())
         month_start = today.replace(day=1)
         
         # Today's stats
         total_today = db.query(AttendanceLog).filter(
-            AttendanceLog.check_in_time >= today
+            AttendanceLog.work_date == today
         ).count()
         
         unique_today = db.query(func.count(func.distinct(AttendanceLog.employee_id))).filter(
-            AttendanceLog.check_in_time >= today
+            AttendanceLog.work_date == today
         ).scalar()
         
         # This week
         total_week = db.query(AttendanceLog).filter(
-            AttendanceLog.check_in_time >= week_start
+            AttendanceLog.work_date >= week_start
         ).count()
         
         # This month
         total_month = db.query(AttendanceLog).filter(
-            AttendanceLog.check_in_time >= month_start
+            AttendanceLog.work_date >= month_start
         ).count()
         
         return {
@@ -182,16 +196,42 @@ class AttendanceService:
         Returns:
             True if already checked in
         """
-        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today = datetime.now().date()
         
-        count = db.query(AttendanceLog).filter(
+        attendance = db.query(AttendanceLog).filter(
             and_(
                 AttendanceLog.employee_id == employee_id,
-                AttendanceLog.check_in_time >= today
+                AttendanceLog.work_date == today
             )
-        ).count()
+        ).first()
         
-        return count > 0
+        return attendance is not None and attendance.check_in is not None
+    
+    @staticmethod
+    def get_attendance_status_today(db: Session, employee_id: int) -> str:
+        """
+        Get attendance status for today
+        
+        Args:
+            db: Database session
+            employee_id: Employee ID
+            
+        Returns:
+            'not-checked-in' or 'checked-in' (with continuous check-out updates)
+        """
+        today = datetime.now().date()
+        
+        attendance = db.query(AttendanceLog).filter(
+            and_(
+                AttendanceLog.employee_id == employee_id,
+                AttendanceLog.work_date == today
+            )
+        ).first()
+        
+        if not attendance or not attendance.check_in:
+            return "not-checked-in"
+        else:
+            return "checked-in"  # Always "checked-in" after first recognition
 
 
 attendance_service = AttendanceService()

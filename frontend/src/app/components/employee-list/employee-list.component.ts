@@ -26,16 +26,16 @@ export class EmployeeListComponent implements OnInit {
   
   // Filters
   searchText = '';
-  filterActive: boolean | undefined = undefined;
+  filterActive: string | undefined = undefined;
   
   // Edit modal
   showEditModal = false;
   editingEmployee: Employee | null = null;
   editForm: EmployeeUpdate = {
     full_name: '',
-    department: '',
+    department_id: undefined,
     position: '',
-    is_active: true
+    status: 'active'
   };
   
   // Delete confirmation
@@ -88,7 +88,7 @@ export class EmployeeListComponent implements OnInit {
     this.filteredEmployees = this.employees.filter(emp => 
       emp.full_name.toLowerCase().includes(search) ||
       emp.employee_code.toLowerCase().includes(search) ||
-      (emp.department && emp.department.toLowerCase().includes(search)) ||
+      (emp.department_id && emp.department_id.toString().includes(search)) ||
       (emp.position && emp.position.toLowerCase().includes(search))
     );
   }
@@ -145,9 +145,9 @@ export class EmployeeListComponent implements OnInit {
     this.editingEmployee = employee;
     this.editForm = {
       full_name: employee.full_name,
-      department: employee.department || '',
+      department_id: employee.department_id,
       position: employee.position || '',
-      is_active: employee.is_active
+      status: employee.status
     };
     this.showEditModal = true;
   }
@@ -233,8 +233,8 @@ export class EmployeeListComponent implements OnInit {
   /**
    * Get status badge class
    */
-  getStatusClass(isActive: boolean): string {
-    return isActive ? 'status-active' : 'status-inactive';
+  getStatusClass(status: string): string {
+    return status === 'active' ? 'status-active' : 'status-inactive';
   }
 
   /**

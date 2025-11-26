@@ -1,35 +1,29 @@
 """
 Attendance log database model
 """
-from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Date, Float, ForeignKey, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 
 class AttendanceLog(Base):
-    __tablename__ = "attendance_logs"
+    __tablename__ = "attendance"
     
+    # SQLite compatible schema
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False, index=True)
-    employee_code = Column(String(50), nullable=False, index=True)
-    employee_name = Column(String(255), nullable=False)
-    
-    # Recognition details
-    confidence_score = Column(Float, nullable=False)
-    recognition_method = Column(String(20))  # 'svm' or 'cosine'
-    
-    # Image snapshot
-    snapshot_path = Column(String(500))
-    
-    # Location (optional for future)
-    location = Column(String(255))
-    
-    # Timestamps
-    check_in_time = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    employee_id = Column(Integer, ForeignKey("employee.id"), nullable=False, index=True)
+    camera_id = Column(Integer)
+    work_date = Column(Date)
+    check_in = Column(DateTime)
+    check_out = Column(DateTime)
+    total_hours = Column(Float)
+    status = Column(String(20))  # 'checked-in', 'completed', 'pending'
+    notes = Column(Text)
+    created_at = Column(DateTime, server_default=func.now())
     
     # Relationship
     employee = relationship("Employee", backref="attendance_logs")
     
     def __repr__(self):
-        return f"<AttendanceLog(id={self.id}, employee={self.employee_name}, time={self.check_in_time})>"
+        return f"<AttendanceLog(id={self.id}, employee_id={self.employee_id}, date={self.work_date})>"

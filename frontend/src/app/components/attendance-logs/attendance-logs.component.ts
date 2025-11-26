@@ -136,8 +136,7 @@ export class AttendanceLogsComponent implements OnInit {
     
     const search = this.searchText.toLowerCase();
     this.filteredLogs = dataSource.filter(log => 
-      log.employee_name.toLowerCase().includes(search) ||
-      log.employee_code.toLowerCase().includes(search)
+      log.employee_id.toString().includes(search)
     );
   }
 
@@ -263,14 +262,16 @@ export class AttendanceLogsComponent implements OnInit {
     }
     
     // Create CSV content
-    const headers = ['ID', 'Employee Code', 'Employee Name', 'Check-in Time', 'Confidence', 'Method'];
+    const headers = ['ID', 'Employee ID', 'Date', 'Check-in', 'Check-out', 'Total Hours', 'Confidence', 'Method'];
     const rows = data.map(log => [
       log.id,
-      log.employee_code,
-      log.employee_name,
-      this.formatDateTime(log.check_in_time),
-      (log.confidence_score * 100).toFixed(1) + '%',
-      log.recognition_method.toUpperCase()
+      log.employee_id,
+      log.work_date || '',
+      this.formatDateTime(log.check_in || ''),
+      this.formatDateTime(log.check_out || ''),
+      log.total_hours?.toFixed(2) || '0',
+      ((log.confidence_score || 0) * 100).toFixed(1) + '%',
+      (log.recognition_method || 'unknown').toUpperCase()
     ]);
     
     const csvContent = [

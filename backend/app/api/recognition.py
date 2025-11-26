@@ -74,16 +74,12 @@ async def recognize_faces(
                     bbox=result['bbox']
                 ))
                 
-                # Log attendance if not already checked in today
-                if not attendance_service.has_checked_in_today(db, employee.id):
-                    attendance_service.log_attendance(
-                        db=db,
-                        employee_id=employee.id,
-                        employee_code=employee.employee_code,
-                        employee_name=employee.full_name,
-                        confidence_score=result['confidence_score'],
-                        recognition_method=result['method']
-                    )
+                # Log attendance - automatically handles check-in or check-out
+                attendance_record, action = attendance_service.log_attendance(
+                    db=db,
+                    employee_id=employee.id
+                )
+                logger.info(f"🔔 {action.upper()}: {employee.full_name}")
         
         processing_time = (datetime.now() - start_time).total_seconds()
         
@@ -112,6 +108,7 @@ async def websocket_recognition_stream(
     """
     WebSocket endpoint for real-time face recognition stream
     SMOOTH VERSION - Recognition runs in background thread
+    Supports camera switching via WebSocket messages
     """
     await websocket.accept()
     logger.info("WebSocket connection established")
@@ -132,14 +129,13 @@ async def websocket_recognition_stream(
         
         await websocket.send_json({
             "type": "info",
-            "message": "Camera stream started"
+            "message": f"Camera {camera_service.camera_id} stream started"
         })
         
         # Shared variables between threads
         frame_queue = Queue(maxsize=2)  # Queue for frames to process
         latest_results = []  # Latest recognition results (cleared each time)
         employee_cache = {}  # Cache employee data to avoid repeated DB queries
-        attendance_logged = set()  # Track who has been logged today
         results_lock = threading.Lock()
         is_running = threading.Event()
         is_running.set()
@@ -188,19 +184,15 @@ async def websocket_recognition_stream(
                                         
                                         temp_results.append(result)
                                         
-                                        # Log attendance (once per session)
-                                        if employee_code not in attendance_logged:
-                                            if not attendance_service.has_checked_in_today(db, employee.id):
-                                                attendance_service.log_attendance(
-                                                    db=db,
-                                                    employee_id=employee.id,
-                                                    employee_code=employee.employee_code,
-                                                    employee_name=employee.full_name,
-                                                    confidence_score=float(confidence_score),
-                                                    recognition_method=method
-                                                )
-                                                logger.info(f"✅ Attendance logged: {employee.full_name}")
-                                            attendance_logged.add(employee_code)
+                                        # Log attendance - continuously update check-out
+                                        try:
+                                            attendance_record, action = attendance_service.log_attendance(
+                                                db=db,
+                                                employee_id=employee.id
+                                            )
+                                            logger.info(f"🔔 {action.upper()}: {employee.full_name}")
+                                        except Exception as att_error:
+                                            logger.error(f"Error logging attendance: {att_error}")
                                 else:
                                     # Unknown face (confidence < 80%)
                                     result = {
@@ -237,6 +229,42 @@ async def websocket_recognition_stream(
         frame_count = 0
         last_send_time = datetime.now()
         
+        # Task to receive messages from client
+        async def receive_messages():
+            """Handle incoming WebSocket messages"""
+            try:
+                while True:
+                    # Receive message from client
+                    data = await websocket.receive_text()
+                    message = json.loads(data)
+                    
+                    if message.get("type") == "switch_camera":
+                        camera_id = message.get("camera_id")
+                        logger.info(f"Switching to camera {camera_id}")
+                        
+                        # Switch camera
+                        success = camera_service.switch_camera(camera_id)
+                        
+                        if success:
+                            await websocket.send_json({
+                                "type": "camera_switched",
+                                "camera_id": camera_id,
+                                "message": f"Switched to camera {camera_id}"
+                            })
+                        else:
+                            await websocket.send_json({
+                                "type": "error",
+                                "message": f"Failed to switch to camera {camera_id}"
+                            })
+                    
+            except WebSocketDisconnect:
+                logger.info("WebSocket disconnected in receive_messages")
+            except Exception as e:
+                logger.error(f"Error in receive_messages: {e}")
+        
+        # Start message receiver task
+        receive_task = asyncio.create_task(receive_messages())
+        
         while True:
             try:
                 # Read frame from camera
@@ -270,7 +298,8 @@ async def websocket_recognition_stream(
                     "frame": frame_base64,
                     "faces": recognized_faces,
                     "timestamp": datetime.now().isoformat(),
-                    "frame_count": frame_count
+                    "frame_count": frame_count,
+                    "camera_id": camera_service.camera_id
                 })
                 
                 # Control frame rate (~30 FPS)
@@ -298,6 +327,10 @@ async def websocket_recognition_stream(
             pass
     
     finally:
+        # Cancel receive task
+        if 'receive_task' in locals():
+            receive_task.cancel()
+        
         # Stop AI worker thread
         is_running.clear()
         ai_thread.join(timeout=2)
@@ -322,6 +355,24 @@ async def get_camera_info():
     except Exception as e:
         logger.error(f"Error getting camera info: {e}")
         return {"available": False, "error": str(e)}
+
+
+@router.get("/camera/list")
+async def list_cameras():
+    """Get list of all available cameras"""
+    try:
+        cameras = camera_service.list_available_cameras()
+        return {
+            "success": True,
+            "cameras": cameras,
+            "count": len(cameras)
+        }
+    except Exception as e:
+        logger.error(f"Error listing cameras: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 
 @router.get("/recognized")

@@ -55,6 +55,7 @@ class FaceRecognitionService:
                 raise FileNotFoundError(f"Model directory not found: {model_dir}")
             
             # Load FaceAnalysis - it will look for root/models/antelopev2
+            # antelopev2 includes detection (with 5 keypoints) and recognition
             self.app = FaceAnalysis(
                 name="antelopev2",
                 root=root_path,

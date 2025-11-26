@@ -198,17 +198,41 @@ async def check_in_status(
     db: Session = Depends(get_db)
 ):
     """
-    Check if employee has checked in today
+    Check employee attendance status for today
+    Returns: not-checked-in or checked-in (check-out updates continuously)
     """
     try:
+        status_today = attendance_service.get_attendance_status_today(db, employee_id)
         has_checked_in = attendance_service.has_checked_in_today(db, employee_id)
         
-        return {
+        # Get today's attendance record to show check-out time
+        from datetime import date
+        today = date.today()
+        attendance = db.query(attendance_service.__class__.__module__).first()  # Get AttendanceLog
+        from app.models.attendance import AttendanceLog
+        attendance_record = db.query(AttendanceLog).filter(
+            AttendanceLog.employee_id == employee_id,
+            AttendanceLog.work_date == today
+        ).first()
+        
+        response = {
             "success": True,
             "employee_id": employee_id,
+            "status": status_today,
             "has_checked_in_today": has_checked_in,
-            "date": datetime.now().date().isoformat()
+            "date": today.isoformat(),
+            "message": {
+                "not-checked-in": "Employee has not checked in yet",
+                "checked-in": "Employee is checked in (check-out updates automatically)"
+            }[status_today]
         }
+        
+        if attendance_record:
+            response["check_in"] = attendance_record.check_in.isoformat() if attendance_record.check_in else None
+            response["check_out"] = attendance_record.check_out.isoformat() if attendance_record.check_out else None
+            response["total_hours"] = float(attendance_record.total_hours) if attendance_record.total_hours else None
+        
+        return response
         
     except Exception as e:
         logger.error(f"Error checking in status: {e}")

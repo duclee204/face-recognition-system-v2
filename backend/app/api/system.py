@@ -33,7 +33,7 @@ async def get_system_status(
     """
     try:
         # Count employees
-        total_employees = employee_service.count_employees(db, is_active=True)
+        total_employees = employee_service.count_employees(db, status='active')
         
         # Check model status
         model_loaded = face_service.model_loaded and face_service.svm_model is not None
@@ -169,7 +169,7 @@ async def get_system_info(
     Get detailed system information
     """
     try:
-        total_employees = employee_service.count_employees(db, is_active=True)
+        total_employees = employee_service.count_employees(db, status='active')
         
         return {
             "success": True,
