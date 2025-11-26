@@ -7,6 +7,9 @@ import cv2
 from typing import Tuple, Optional
 from loguru import logger
 
+# Configure OpenCV to use 4 threads for optimized performance
+cv2.setNumThreads(4)
+
 
 class HeadPoseEstimator:
     """

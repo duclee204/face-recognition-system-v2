@@ -12,6 +12,9 @@ from loguru import logger
 
 from app.services.head_pose import head_pose_estimator
 
+# Configure OpenCV to use 4 threads for optimized performance
+cv2.setNumThreads(4)
+
 
 class AutoRegistrationSession:
     """

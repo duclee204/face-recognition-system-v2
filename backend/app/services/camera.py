@@ -11,6 +11,9 @@ from loguru import logger
 
 from app.core.config import settings
 
+# Configure OpenCV to use 4 threads for optimized performance
+cv2.setNumThreads(4)
+
 
 class CameraService:
     """

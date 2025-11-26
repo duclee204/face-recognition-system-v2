@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import joblib
 import os
+import onnxruntime as ort
 from typing import List, Tuple, Optional, Dict
 from insightface.app import FaceAnalysis
 from sklearn.svm import SVC
@@ -15,6 +16,9 @@ from datetime import datetime
 from loguru import logger
 
 from app.core.config import settings
+
+# Configure OpenCV to use 4 threads for optimized performance
+cv2.setNumThreads(4)
 
 
 class FaceRecognitionService:
@@ -45,6 +49,7 @@ class FaceRecognitionService:
             
             # Get absolute path to model directory
             import os
+            import onnxruntime as ort
             root_path = os.path.abspath(settings.INSIGHTFACE_MODEL_PATH)
             logger.info(f"Root path: {root_path}")
             
@@ -54,16 +59,24 @@ class FaceRecognitionService:
             if not os.path.exists(model_dir):
                 raise FileNotFoundError(f"Model directory not found: {model_dir}")
             
+            # Configure ONNX Runtime session options for 4 CPU cores
+            sess_options = ort.SessionOptions()
+            sess_options.intra_op_num_threads = 4  # Number of threads for parallel execution within ops
+            sess_options.inter_op_num_threads = 4  # Number of threads for parallel execution between ops
+            sess_options.execution_mode = ort.ExecutionMode.ORT_PARALLEL  # Enable parallel execution
+            sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            
             # Load FaceAnalysis - it will look for root/models/antelopev2
             # antelopev2 includes detection (with 5 keypoints) and recognition
             self.app = FaceAnalysis(
                 name="antelopev2",
                 root=root_path,
                 providers=['CPUExecutionProvider'],
-                allowed_modules=['detection', 'recognition']
+                allowed_modules=['detection', 'recognition'],
+                session_options=sess_options
             )
             self.app.prepare(ctx_id=-1, det_size=(640, 640))
-            logger.info("✅ InsightFace model loaded successfully")
+            logger.info("✅ InsightFace model loaded successfully with 4 CPU cores")
         except Exception as e:
             logger.error(f"❌ Failed to load InsightFace: {e}")
             raise
@@ -239,7 +252,7 @@ class FaceRecognitionService:
         
         logger.info(f"Training SVM on {len(X)} samples from {len(set(y))} employees")
         
-        # Grid search for best parameters
+        # Grid search for best parameters using 4 CPU cores
         param_grid = {
             "C": [1, 5, 10, 20],
             "gamma": [0.01, 0.05, 0.1, 0.2],
@@ -247,7 +260,7 @@ class FaceRecognitionService:
         }
         
         svc = SVC(probability=True, class_weight="balanced")
-        grid = GridSearchCV(svc, param_grid, cv=3, n_jobs=-1, scoring="accuracy")
+        grid = GridSearchCV(svc, param_grid, cv=3, n_jobs=4, scoring="accuracy")
         grid.fit(X, y)
         
         best_params = grid.best_params_
