@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>🎯 Face Recognition System</h1>
+            <div class="nav-links">
+                <a href="/" class="active">Home</a>
+                <a href="/registration">Register</a>
+                <a href="/recognition">Recognition</a>
+                <a href="/employees">Employees</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="hero">
+            <h2>Welcome to Face Recognition System</h2>
+            <p>Manage employee attendance with facial recognition technology</p>
+            
+            <div class="features">
+                <div class="feature-card">
+                    <div class="icon">📝</div>
+                    <h3>Register Employee</h3>
+                    <p>Register new employees with multi-angle face capture</p>
+                    <a href="/registration" class="btn btn-primary">Start Registration</a>
+                </div>
+
+                <div class="feature-card">
+                    <div class="icon">🎥</div>
+                    <h3>Face Recognition</h3>
+                    <p>Real-time face recognition for attendance tracking</p>
+                    <a href="/recognition" class="btn btn-success">Start Recognition</a>
+                </div>
+
+                <div class="feature-card">
+                    <div class="icon">👥</div>
+                    <h3>Manage Employees</h3>
+                    <p>View and manage employee database</p>
+                    <a href="/employees" class="btn btn-info">View Employees</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="system-info">
+            <h3>System Information</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="label">Status:</span>
+                    <span class="value" id="system-status">Checking...</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Version:</span>
+                    <span class="value">1.0.0</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">API Docs:</span>
+                    <span class="value"><a href="/docs" target="_blank">OpenAPI Docs</a></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check system status
+        fetch('/api/health')
+            .then(res => res.json())
+            .then(data => {
+                const statusEl = document.getElementById('system-status');
+                statusEl.textContent = data.status === 'healthy' ? '✅ Online' : '❌ Offline';
+                statusEl.className = 'value ' + (data.status === 'healthy' ? 'status-online' : 'status-offline');
+            })
+            .catch(err => {
+                const statusEl = document.getElementById('system-status');
+                statusEl.textContent = '❌ Offline';
+                statusEl.className = 'value status-offline';
+            });
+    </script>
+</body>
+</html>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhận Diện Khuôn Mặt - Face Recognition System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .recognition-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+        }
+        .recognized-list {
+            background: #f7fafc;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .recognized-item {
+            background: white;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #48bb78;
+        }
+        .recognized-item.unknown {
+            border-left-color: #f56565;
+        }
+        .recognized-item .name {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+        .recognized-item .time {
+            font-size: 14px;
+            color: #718096;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-card .number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #667eea;
+        }
+        .stat-card .label {
+            color: #718096;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container">
+            <h1>🎯 Face Recognition</h1>
+            <div class="nav-links">
+                <a href="/">Trang chủ</a>
+                <a href="/registration">Đăng ký</a>
+                <a href="/recognition" class="active">Nhận diện</a>
+                <a href="/employees">Nhân viên</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Hero -->
+        <div class="hero">
+            <h2>Nhận Diện Khuôn Mặt</h2>
+            <p>Hệ thống nhận diện tự động với chấm công realtime</p>
+        </div>
+
+        <!-- Recognition Interface -->
+        <div class="system-info">
+            <div class="recognition-container">
+                <!-- Left: Camera Stream -->
+                <div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="number" id="totalRecognized">0</div>
+                            <div class="label">Đã nhận diện</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="number" id="fps">0</div>
+                            <div class="label">FPS</div>
+                        </div>
+                    </div>
+
+                    <div class="video-container">
+                        <video id="video" autoplay playsinline></video>
+                        <canvas id="canvas"></canvas>
+                    </div>
+                    
+                    <div class="message info" id="status">
+                        Đang khởi động camera...
+                    </div>
+
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button id="switchCamera" class="btn btn-info">Đổi camera</button>
+                        <button id="startRecognition" class="btn btn-primary">Bắt đầu</button>
+                        <button id="stopRecognition" class="btn btn-danger" style="display: none;">Dừng lại</button>
+                    </div>
+                </div>
+
+                <!-- Right: Recognition Results -->
+                <div>
+                    <h3>Danh sách nhận diện</h3>
+                    <div class="recognized-list" id="recognizedList">
+                        <p style="text-align: center; color: #718096;">Chưa có dữ liệu</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/camera.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script>
+        const camera = new CameraManager();
+        const api = new APIClient();
+        
+        let isRecognizing = false;
+        let frameInterval = null;
+        let frameCount = 0;
+        let fpsInterval = null;
+        let totalRecognized = 0;
+        let recognizedEmployees = new Set();
+
+        // Initialize camera
+        camera.init('video', 'canvas').then(() => {
+            document.getElementById('status').innerHTML = '<span class="status-online">✅ Camera sẵn sàng</span>';
+        });
+
+        // Switch camera
+        document.getElementById('switchCamera').addEventListener('click', () => {
+            camera.switchCamera();
+        });
+
+        // Start recognition
+        document.getElementById('startRecognition').addEventListener('click', () => {
+            startRecognition();
+        });
+
+        // Stop recognition
+        document.getElementById('stopRecognition').addEventListener('click', () => {
+            stopRecognition();
+        });
+
+        function startRecognition() {
+            if (isRecognizing) return;
+
+            isRecognizing = true;
+            document.getElementById('startRecognition').style.display = 'none';
+            document.getElementById('stopRecognition').style.display = 'inline-block';
+            document.getElementById('status').innerHTML = '<span class="status-online">🔴 Đang nhận diện...</span>';
+
+            // Connect WebSocket
+            api.connectRecognition(handleRecognitionResult, handleError);
+
+            // Start sending frames
+            frameInterval = setInterval(() => {
+                const frame = camera.captureFrameWithoutCanvas();
+                api.sendFrame(frame);
+                frameCount++;
+            }, 100); // 10 FPS
+
+            // FPS counter
+            fpsInterval = setInterval(() => {
+                document.getElementById('fps').textContent = frameCount;
+                frameCount = 0;
+            }, 1000);
+        }
+
+        function stopRecognition() {
+            if (!isRecognizing) return;
+
+            isRecognizing = false;
+            document.getElementById('startRecognition').style.display = 'inline-block';
+            document.getElementById('stopRecognition').style.display = 'none';
+            document.getElementById('status').innerHTML = '<span class="status-online">✅ Camera sẵn sàng</span>';
+
+            // Disconnect WebSocket
+            api.disconnectRecognition();
+
+            // Stop intervals
+            if (frameInterval) {
+                clearInterval(frameInterval);
+                frameInterval = null;
+            }
+            if (fpsInterval) {
+                clearInterval(fpsInterval);
+                fpsInterval = null;
+            }
+
+            // Clear canvas
+            camera.clearCanvas();
+        }
+
+        function handleRecognitionResult(data) {
+            if (data.faces && data.faces.length > 0) {
+                // Clear canvas
+                camera.clearCanvas();
+
+                // Draw bounding boxes
+                data.faces.forEach(face => {
+                    const color = face.name === 'Unknown' ? '#f56565' : '#48bb78';
+                    camera.drawBoundingBox(face.bbox, face.name, color);
+
+                    // Add to recognized list
+                    if (face.name !== 'Unknown') {
+                        addRecognizedEmployee(face.name, face.employee_id);
+                    }
+                });
+            }
+        }
+
+        function handleError(error) {
+            console.error('WebSocket error:', error);
+            document.getElementById('status').innerHTML = '<span class="status-offline">❌ Lỗi kết nối</span>';
+            stopRecognition();
+        }
+
+        function addRecognizedEmployee(name, employeeId) {
+            const key = `${employeeId}-${new Date().toDateString()}`;
+            
+            if (!recognizedEmployees.has(key)) {
+                recognizedEmployees.add(key);
+                totalRecognized++;
+                document.getElementById('totalRecognized').textContent = totalRecognized;
+
+                const listElement = document.getElementById('recognizedList');
+                
+                // Remove "no data" message
+                if (listElement.querySelector('p')) {
+                    listElement.innerHTML = '';
+                }
+
+                // Add new item
+                const item = document.createElement('div');
+                item.className = 'recognized-item';
+                item.innerHTML = `
+                    <div class="name">${name}</div>
+                    <div class="time">${employeeId} - ${new Date().toLocaleTimeString('vi-VN')}</div>
+                `;
+                
+                listElement.insertBefore(item, listElement.firstChild);
+            }
+        }
+    </script>
+</body>
+</html>

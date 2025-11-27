@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng Ký Nhân Viên - Face Recognition System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container">
+            <h1>🎯 Face Recognition</h1>
+            <div class="nav-links">
+                <a href="/">Trang chủ</a>
+                <a href="/registration" class="active">Đăng ký</a>
+                <a href="/recognition">Nhận diện</a>
+                <a href="/employees">Nhân viên</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Hero -->
+        <div class="hero">
+            <h2>Đăng Ký Nhân Viên Mới</h2>
+            <p>Điền thông tin và chụp 5 góc khuôn mặt để đăng ký</p>
+        </div>
+
+        <!-- Registration Form -->
+        <div class="system-info">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <!-- Left: Form -->
+                <div>
+                    <h3>Thông tin nhân viên</h3>
+                    <form id="employeeForm">
+                        <div class="form-group">
+                            <label for="employee_id">Mã nhân viên *</label>
+                            <input type="text" id="employee_id" placeholder="VD: EPLE001" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="name">Họ và tên *</label>
+                            <input type="text" id="name" placeholder="Nguyễn Văn A" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="department">Phòng ban</label>
+                            <input type="text" id="department" placeholder="IT">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="position">Chức vụ</label>
+                            <input type="text" id="position" placeholder="Developer">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" placeholder="example@company.com">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Tạo nhân viên</button>
+                    </form>
+
+                    <!-- Pose Capture Section (Hidden initially) -->
+                    <div id="poseSection" style="display: none; margin-top: 30px;">
+                        <h3>Chụp khuôn mặt (5 góc)</h3>
+                        <div id="poseProgress" style="margin-bottom: 20px;">
+                            <div class="info-item">
+                                <span class="label">🎯 Trung tâm</span>
+                                <span class="value" id="pose-center">Chờ...</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">⬅️ Quay trái</span>
+                                <span class="value" id="pose-left">Chờ...</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">➡️ Quay phải</span>
+                                <span class="value" id="pose-right">Chờ...</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">⬆️ Quay lên</span>
+                                <span class="value" id="pose-up">Chờ...</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">⬇️ Quay xuống</span>
+                                <span class="value" id="pose-down">Chờ...</span>
+                            </div>
+                        </div>
+
+                        <div class="message info" id="poseGuidance">
+                            Hướng khuôn mặt về trung tâm để bắt đầu
+                        </div>
+
+                        <button id="trainButton" class="btn btn-success" style="width: 100%; display: none;">
+                            Huấn luyện mô hình
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: Camera -->
+                <div>
+                    <h3>Camera</h3>
+                    <div class="video-container">
+                        <video id="video" autoplay playsinline></video>
+                        <canvas id="canvas"></canvas>
+                    </div>
+                    
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button id="switchCamera" class="btn btn-info" style="flex: 1;">
+                            Đổi camera
+                        </button>
+                        <button id="startCapture" class="btn btn-primary" style="flex: 1;" disabled>
+                            Bắt đầu chụp
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/camera.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script>
+        const camera = new CameraManager();
+        const api = new APIClient();
+        
+        let currentEmployeeId = null;
+        let isCapturing = false;
+        let captureInterval = null;
+        
+        const poses = ['center', 'left', 'right', 'up', 'down'];
+        const poseNames = {
+            'center': 'THẲNG',
+            'left': 'TRÁI', 
+            'right': 'PHẢI',
+            'up': 'TRÊN',
+            'down': 'DƯỚI'
+        };
+        let currentPoseIndex = 0;  // Start with first pose (center)
+        const capturedPoses = new Set();
+        const STABLE_FRAMES_REQUIRED = 30;
+        let stableFrameCount = 0;
+        let lastDetectedPose = null;
+
+        // Camera will be initialized after employee creation
+
+        // Employee form submission
+        document.getElementById('employeeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const employeeData = {
+                employee_code: document.getElementById('employee_id').value,
+                full_name: document.getElementById('name').value,
+                department_id: null,
+                position: document.getElementById('position').value || null,
+                email: document.getElementById('email').value || null,
+                phone_number: null
+            };
+
+            try {
+                const result = await api.createEmployee(employeeData);
+                currentEmployeeId = result.employee_code;
+                
+                // Initialize camera after employee created successfully
+                await camera.init('video', 'canvas');
+                
+                alert('✅ Tạo nhân viên thành công! Bắt đầu chụp ảnh khuôn mặt.');
+                document.getElementById('employeeForm').style.display = 'none';
+                document.getElementById('poseSection').style.display = 'block';
+                document.getElementById('startCapture').disabled = false;
+            } catch (error) {
+                alert('❌ Lỗi: ' + error.message);
+            }
+        });
+
+        // Switch camera
+        document.getElementById('switchCamera').addEventListener('click', () => {
+            camera.switchCamera();
+        });
+
+        // Start capture
+        document.getElementById('startCapture').addEventListener('click', () => {
+            if (!isCapturing) {
+                startPoseCapture();
+            } else {
+                stopPoseCapture();
+            }
+        });
+
+        function startPoseCapture() {
+            isCapturing = true;
+            document.getElementById('startCapture').textContent = 'Dừng chụp';
+            document.getElementById('startCapture').classList.remove('btn-primary');
+            document.getElementById('startCapture').classList.add('btn-danger');
+            
+            // Show instruction for current pose
+            const currentPose = poses[currentPoseIndex];
+            document.getElementById('poseGuidance').innerHTML = `<strong>🎯 Hãy quay ${poseNames[currentPose]}</strong>`;
+            
+            captureInterval = setInterval(async () => {
+                const frame = camera.captureFrame();
+                
+                try {
+                    const result = await api.detectHeadPose(frame);
+                    const currentRequiredPose = poses[currentPoseIndex];
+                    
+                    // Only capture if detecting the REQUIRED pose
+                    if (result.current_pose === currentRequiredPose && !capturedPoses.has(currentRequiredPose)) {
+                        // Check if pose is stable
+                        if (lastDetectedPose === result.current_pose) {
+                            stableFrameCount++;
+                            
+                            // Update progress
+                            const progress = Math.round((stableFrameCount / STABLE_FRAMES_REQUIRED) * 100);
+                            document.getElementById(`pose-${result.current_pose}`).textContent = `${progress}%`;
+                            document.getElementById('poseGuidance').innerHTML = `<strong>✅ Giữ nguyên! ${progress}%</strong>`;
+                            
+                            if (stableFrameCount >= STABLE_FRAMES_REQUIRED) {
+                                // Capture this pose
+                                await capturePose(result.current_pose, frame);
+                                stableFrameCount = 0;
+                                lastDetectedPose = null;
+                                
+                                // Move to next pose
+                                currentPoseIndex++;
+                                if (currentPoseIndex < poses.length) {
+                                    const nextPose = poses[currentPoseIndex];
+                                    document.getElementById('poseGuidance').innerHTML = `<strong>🎯 Hãy quay ${poseNames[nextPose]}</strong>`;
+                                }
+                            }
+                        } else {
+                            // Pose changed or just started detecting
+                            stableFrameCount = 0;
+                            lastDetectedPose = result.current_pose;
+                        }
+                    } else if (result.current_pose !== currentRequiredPose) {
+                        // Wrong pose, show guidance
+                        stableFrameCount = 0;
+                        lastDetectedPose = null;
+                        document.getElementById('poseGuidance').innerHTML = `<strong>🎯 Hãy quay ${poseNames[currentRequiredPose]}</strong> (Đang: ${result.message})`;
+                    }
+                } catch (error) {
+                    console.error('Pose detection error:', error);
+                }
+            }, 100); // 10 FPS
+        }
+
+        function stopPoseCapture() {
+            isCapturing = false;
+            if (captureInterval) {
+                clearInterval(captureInterval);
+                captureInterval = null;
+            }
+            
+            document.getElementById('startCapture').textContent = 'Bắt đầu chụp';
+            document.getElementById('startCapture').classList.remove('btn-danger');
+            document.getElementById('startCapture').classList.add('btn-primary');
+        }
+
+        async function capturePose(pose, frame) {
+            try {
+                await api.registerFace(currentEmployeeId, frame, pose);
+                
+                capturedPoses.add(pose);
+                document.getElementById(`pose-${pose}`).innerHTML = '<span class="status-online">✓ Hoàn thành</span>';
+                
+                // Check if all poses captured
+                if (capturedPoses.size === 5) {
+                    stopPoseCapture();
+                    document.getElementById('poseGuidance').innerHTML = '<span class="status-online">✅ Đã chụp đủ 5 góc! Bạn có thể huấn luyện mô hình.</span>';
+                    document.getElementById('trainButton').style.display = 'block';
+                }
+            } catch (error) {
+                alert('❌ Lỗi khi lưu ảnh: ' + error.message);
+            }
+        }
+
+        // Train model
+        document.getElementById('trainButton').addEventListener('click', async () => {
+            try {
+                document.getElementById('trainButton').disabled = true;
+                document.getElementById('trainButton').textContent = 'Đang huấn luyện...';
+                
+                await api.trainModel(currentEmployeeId);
+                
+                alert('✅ Huấn luyện mô hình thành công!');
+                window.location.href = '/employees';
+            } catch (error) {
+                alert('❌ Lỗi khi huấn luyện: ' + error.message);
+                document.getElementById('trainButton').disabled = false;
+                document.getElementById('trainButton').textContent = 'Huấn luyện mô hình';
+            }
+        });
+    </script>
+</body>
+</html>

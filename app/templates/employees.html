@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Nhân Viên - Face Recognition System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .employee-table {
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .employee-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .employee-table th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        .employee-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .employee-table tr:hover {
+            background: #f7fafc;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+        .search-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        .search-bar input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .badge.trained {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        .badge.untrained {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container">
+            <h1>🎯 Face Recognition</h1>
+            <div class="nav-links">
+                <a href="/">Trang chủ</a>
+                <a href="/registration">Đăng ký</a>
+                <a href="/recognition">Nhận diện</a>
+                <a href="/employees" class="active">Nhân viên</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Hero -->
+        <div class="hero">
+            <h2>Quản Lý Nhân Viên</h2>
+            <p>Danh sách tất cả nhân viên trong hệ thống</p>
+        </div>
+
+        <!-- Employee List -->
+        <div class="system-info">
+            <!-- Search Bar -->
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Tìm kiếm theo tên, mã NV, phòng ban...">
+                <button class="btn btn-primary" onclick="window.location.href='/registration'">
+                    + Thêm nhân viên mới
+                </button>
+            </div>
+
+            <!-- Loading -->
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Đang tải dữ liệu...</p>
+            </div>
+
+            <!-- Employee Table -->
+            <div id="employeeTableContainer" style="display: none;">
+                <div class="employee-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mã NV</th>
+                                <th>Họ tên</th>
+                                <th>Phòng ban</th>
+                                <th>Chức vụ</th>
+                                <th>Email</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeeTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" style="display: none; text-align: center; padding: 40px;">
+                <h3>Chưa có nhân viên nào</h3>
+                <p style="color: #718096; margin: 15px 0;">Bắt đầu bằng cách thêm nhân viên mới</p>
+                <button class="btn btn-primary" onclick="window.location.href='/registration'">
+                    + Thêm nhân viên mới
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/api.js"></script>
+    <script>
+        const api = new APIClient();
+        let allEmployees = [];
+
+        // Load employees on page load
+        window.addEventListener('load', async () => {
+            await loadEmployees();
+        });
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            filterEmployees(query);
+        });
+
+        async function loadEmployees() {
+            try {
+                allEmployees = await api.getEmployees();
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (allEmployees.length === 0) {
+                    document.getElementById('emptyState').style.display = 'block';
+                } else {
+                    document.getElementById('employeeTableContainer').style.display = 'block';
+                    renderEmployees(allEmployees);
+                }
+            } catch (error) {
+                console.error('Error loading employees:', error);
+                document.getElementById('loading').innerHTML = `
+                    <div class="message error">
+                        ❌ Lỗi khi tải dữ liệu: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function renderEmployees(employees) {
+            const tbody = document.getElementById('employeeTableBody');
+            tbody.innerHTML = '';
+
+            employees.forEach(employee => {
+                const row = document.createElement('tr');
+                
+                const statusBadge = employee.is_trained 
+                    ? '<span class="badge trained">Đã huấn luyện</span>'
+                    : '<span class="badge untrained">Chưa huấn luyện</span>';
+
+                row.innerHTML = `
+                    <td><strong>${employee.employee_id}</strong></td>
+                    <td>${employee.name}</td>
+                    <td>${employee.department || '-'}</td>
+                    <td>${employee.position || '-'}</td>
+                    <td>${employee.email || '-'}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn btn-info" onclick="viewEmployee('${employee.employee_id}')">
+                                Xem
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteEmployee('${employee.employee_id}', '${employee.name}')">
+                                Xóa
+                            </button>
+                        </div>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        function filterEmployees(query) {
+            if (!query) {
+                renderEmployees(allEmployees);
+                return;
+            }
+
+            const filtered = allEmployees.filter(emp => {
+                return emp.employee_id.toLowerCase().includes(query) ||
+                       emp.name.toLowerCase().includes(query) ||
+                       (emp.department && emp.department.toLowerCase().includes(query)) ||
+                       (emp.position && emp.position.toLowerCase().includes(query)) ||
+                       (emp.email && emp.email.toLowerCase().includes(query));
+            });
+
+            renderEmployees(filtered);
+        }
+
+        async function viewEmployee(employeeId) {
+            try {
+                const employee = await api.getEmployee(employeeId);
+                
+                const details = `
+Mã nhân viên: ${employee.employee_id}
+Họ tên: ${employee.name}
+Phòng ban: ${employee.department || 'Chưa có'}
+Chức vụ: ${employee.position || 'Chưa có'}
+Email: ${employee.email || 'Chưa có'}
+Trạng thái: ${employee.is_trained ? 'Đã huấn luyện' : 'Chưa huấn luyện'}
+Ngày tạo: ${new Date(employee.created_at).toLocaleString('vi-VN')}
+                `.trim();
+
+                alert(details);
+            } catch (error) {
+                alert('❌ Lỗi khi tải thông tin: ' + error.message);
+            }
+        }
+
+        async function deleteEmployee(employeeId, name) {
+            if (!confirm(`Bạn có chắc muốn xóa nhân viên "${name}"?\n\nThao tác này không thể hoàn tác!`)) {
+                return;
+            }
+
+            try {
+                await api.deleteEmployee(employeeId);
+                alert('✅ Đã xóa nhân viên thành công!');
+                
+                // Reload employees
+                allEmployees = [];
+                document.getElementById('employeeTableContainer').style.display = 'none';
+                document.getElementById('loading').style.display = 'block';
+                await loadEmployees();
+            } catch (error) {
+                alert('❌ Lỗi khi xóa nhân viên: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
